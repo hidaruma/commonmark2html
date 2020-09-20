@@ -3,9 +3,11 @@
 xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
 xmlns:md="http://commonmark.org/xml/1.0"
 xmlns:xs="http://www.w3.org/2001/XMLSchema"
+xmlns:array="http://www.w3.org/2005/xpath-functions/array"
+xmlns:map="http://www.w3.org/2005/xpath-functions/map"
 
 name="urn:hidaruma:commonmark2html"
-package-version="0.1.1"
+package-version="0.1.2"
 xmlns:cm2h="urn:hidaruma:commonmark2html"
 xmlns="http://www.w3.org/1999/XHTML"
 exclude-result-prefixes="#all">
@@ -27,8 +29,18 @@ exclude-result-prefixes="#all">
 <xsl:mode streamable="yes"
           on-no-match="shallow-copy"/>
 <xsl:preserve-space
- elements="md:code_block md:code md:html_block html_inline custom_inline custom_block" />
-<xsl:variable name="cm2h:list-item-css" as="xs:string">
+ elements="md:code_block md:code md:html_block
+  html_inline custom_inline custom_block" />
+ <xsl:accumulator name="headings" 
+ as="array(map(xs:string, 
+            xs:integer))"
+ initial-value="array {}" streamable="yes">
+     <xsl:accumulator-rule
+      match="md:heading"
+      select="array:append($value, map {'title':., 'level':@level})" />
+ </xsl:accumulator>
+ 
+ <xsl:variable name="cm2h:list-item-css" as="xs:string">
 <xsl:text>    ol.paren, {list-style:none;counter-reset: order;}
     ol.paren::before{counter-increment(order);content: counters(order, ")") " }</xsl:text>
 </xsl:variable>
@@ -40,15 +52,18 @@ exclude-result-prefixes="#all">
 
 <xsl:template name="cm2h:meta">
         <meta charset="UTF-8" />
-        <meta name="generator" content="XSLT 3.0" />
+        <meta name="generator" content="XSLT 3.0 {system-property('xsl:vendor')}" />
 </xsl:template>
 
 <xsl:template match="md:document" name="cm2h:document">
 <html lang="{$lang}">
     <head>
-        <title>
-        <xsl:value-of select=".//md:heading[@level = '1']" />
-    </title>
+        <title>    
+            <xsl:value-of select="
+            accumulator-after('headings') => 
+                array:head() => map:get('title')"
+                    />
+        </title>
         <xsl:call-template name="cm2h:meta" />
         <style type="text/css">
             <xsl:comment>
